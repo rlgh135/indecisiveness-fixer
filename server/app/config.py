@@ -9,13 +9,13 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
 
     # LLM API Keys
-    ANTHROPIC_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
     PERPLEXITY_API_KEY: str = ""
 
     # Models
-    JUDGE_MODEL: str = "claude-haiku-4-5-20251001"
-    PERSONA_MODEL: str = "claude-sonnet-4-6"
-    SYNTHESIZER_MODEL: str = "claude-sonnet-4-6"
+    JUDGE_MODEL: str = "gpt-4o-mini"
+    PERSONA_MODEL: str = "gpt-4o"
+    SYNTHESIZER_MODEL: str = "gpt-4o"
 
     # Perplexity / Grounding
     PERPLEXITY_MODEL: str = "sonar"
