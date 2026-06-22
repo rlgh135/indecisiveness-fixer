@@ -30,6 +30,7 @@ def _empty_session() -> dict[str, Any]:
         "requestion_count": 0,
         "locked": False,
         "created_at": _now_iso(),
+        "last_grounded_summary": None,  # 직전 grounding 요약 (중복 검색 방지용)
     }
 
 
@@ -79,6 +80,17 @@ async def reset_session(redis: aioredis.Redis, session_id: str) -> None:
         raise KeyError(session_id)
     data["requestion_count"] = 0
     data["locked"] = False
+    await _save(redis, session_id, data)
+
+
+async def save_last_grounding(
+    redis: aioredis.Redis, session_id: str, summary: str
+) -> None:
+    """그라운딩 요약을 세션에 저장 (재질문 시 중복 검색 방지용)."""
+    data = await get_session(redis, session_id)
+    if data is None:
+        raise KeyError(session_id)
+    data["last_grounded_summary"] = summary
     await _save(redis, session_id, data)
 
 

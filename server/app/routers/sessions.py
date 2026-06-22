@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.config import settings
+from app.context import build_history_messages
 from app.db import AsyncSessionLocal
 from app.grounding import ground
 from app.judge import run_judge
@@ -18,6 +19,7 @@ from app.session_store import (
     increment_requestion,
     lock_session,
     reset_session,
+    save_last_grounding,
 )
 from app.synthesizer import synthesize
 
@@ -155,13 +157,21 @@ async def ask(session_id: str, body: AskRequest):
                             "summary": grounding.summary,
                         })
 
+                # ── 컨텍스트 윈도우 빌드 (§9.1) ──────────────────
+                current_session = await get_session(redis, session_id)
+                history = await build_history_messages(
+                    history=current_session.get("history", []),
+                    last_grounded_summary=current_session.get("last_grounded_summary"),
+                )
+
+                # ── Grounding 저장 (중복 검색 방지) ──────────────
+                if grounding:
+                    await save_last_grounding(redis, session_id, grounding.summary)
+
                 # ── Persona fan-out ───────────────────────────
                 personas = await load_personas(judge_out.selected_personas, db)
                 answers = []
                 order = 0
-
-                # Step 9에서 history 윈도우 포맷으로 교체 예정
-                history: list[dict] = []
 
                 async for answer in run_fanout(personas, body.question, grounding, history):
                     order += 1
@@ -180,7 +190,7 @@ async def ask(session_id: str, body: AskRequest):
                     "key_reasons": synthesis.key_reasons,
                 })
 
-                # ── 히스토리 저장 (Step 9에서 윈도우 처리 추가) ──
+                # ── 히스토리 저장 ─────────────────────────────
                 await append_history(redis, session_id, "user", body.question)
                 await append_history(redis, session_id, "assistant", synthesis.conclusion)
 
