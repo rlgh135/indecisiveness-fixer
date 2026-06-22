@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import check_db
 from app.redis_client import check_redis, close_redis
+from app.routers import sessions
 
 
 @asynccontextmanager
@@ -21,6 +22,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(sessions.router)
 
 
 @app.get("/health")
