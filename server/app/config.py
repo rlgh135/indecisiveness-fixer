@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     GROUNDING_TIMEOUT_SEC: int = 6
     GROUNDING_MAX_TOKENS: int = 1000
 
+    # Judge
+    JUDGE_PERSONA_COUNT: int = 3  # fan-out할 페르소나 수
+
     # Session
     SESSION_TTL_SEC: int = 3600
     MAX_REQUESTION_COUNT: int = 3
