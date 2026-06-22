@@ -17,11 +17,16 @@ from app.session_store import (
     get_session,
     create_session,
     increment_requestion,
-    lock_session,
     reset_session,
     save_last_grounding,
 )
 from app.synthesizer import synthesize
+from app.termination import (
+    check_and_auto_unlock,
+    cooldown_remaining,
+    lock_with_cooldown,
+    pick_termination_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,8 +114,16 @@ async def ask(session_id: str, body: AskRequest):
     session = await get_session(redis, session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found or expired")
-    if session["locked"]:
-        raise HTTPException(status_code=423, detail="Session is locked. POST /sessions/{id}/reset to recover.")
+
+    if session.get("locked"):
+        # 쿨다운 자동 해제 체크
+        auto_unlocked = await check_and_auto_unlock(redis, session_id)
+        if not auto_unlocked:
+            remaining = cooldown_remaining(session.get("locked_at"))
+            detail = "Session is locked. POST /sessions/{id}/reset to recover."
+            if remaining > 0:
+                detail = f"Session is locked. Auto-unlocks in {remaining}s."
+            raise HTTPException(status_code=423, detail=detail)
 
     async def stream():
         try:
@@ -118,11 +131,12 @@ async def ask(session_id: str, body: AskRequest):
             count = await increment_requestion(redis, session_id)
 
             if count > settings.MAX_REQUESTION_COUNT:
-                await lock_session(redis, session_id)
-                # Step 10에서 "재수없는 말투"로 교체 예정
-                yield _sse("error", {
-                    "message": "질문 한도를 초과했다. 그만 좀 물어봐라.",
-                    "locked": True,
+                await lock_with_cooldown(redis, session_id)
+                remaining = settings.COOLDOWN_SEC if settings.COOLDOWN_SEC > 0 else -1
+                yield _sse("locked", {
+                    "message": pick_termination_message(),
+                    "reset_path": f"/sessions/{session_id}/reset",
+                    "cooldown_sec": remaining,
                 })
                 yield _sse("done", {"requestion_count": count})
                 return

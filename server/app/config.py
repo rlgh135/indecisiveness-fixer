@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     SESSION_TTL_SEC: int = 3600
     MAX_REQUESTION_COUNT: int = 3
     CONTEXT_WINDOW_TURNS: int = 5
+    COOLDOWN_SEC: int = 0  # 0 = 수동 리셋만. >0 이면 N초 후 자동 해제
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

@@ -74,12 +74,13 @@ async def lock_session(redis: aioredis.Redis, session_id: str) -> None:
 
 
 async def reset_session(redis: aioredis.Redis, session_id: str) -> None:
-    """카운터·lock 초기화. 히스토리는 유지."""
+    """카운터·lock·locked_at 초기화. 히스토리는 유지."""
     data = await get_session(redis, session_id)
     if data is None:
         raise KeyError(session_id)
     data["requestion_count"] = 0
     data["locked"] = False
+    data["locked_at"] = None
     await _save(redis, session_id, data)
 
 
